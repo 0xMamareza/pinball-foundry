@@ -1,0 +1,96 @@
+import { beforeEach,afterEach,expect,it,vi } from 'vitest';
+import { render,screen,fireEvent,cleanup } from '@testing-library/react';
+import App from './App';
+vi.mock('./chain',async()=>({...await vi.importActual('./chain'),isRegistryConfigured:()=>false,connectWallet:vi.fn(),publishTable:vi.fn(),listTables:vi.fn()}));
+beforeEach(()=>{Element.prototype.scrollIntoView=vi.fn();localStorage.clear();history.replaceState(null,'','/');vi.stubGlobal('fetch',vi.fn().mockRejectedValue(Error('offline')));vi.stubGlobal('requestAnimationFrame',vi.fn(()=>1));vi.stubGlobal('cancelAnimationFrame',vi.fn());vi.spyOn(HTMLCanvasElement.prototype,'getContext').mockReturnValue(null);});
+afterEach(()=>{cleanup();vi.restoreAllMocks();vi.unstubAllGlobals();});
+it('defaults to the requested dark theme and persists a reversible light preference',()=>{
+ render(<App/>);
+ expect(document.documentElement.dataset.theme).toBe('dark');
+ const toggle=screen.getByRole('button',{name:'Switch to light theme'});
+ expect(toggle.getAttribute('aria-pressed')).toBe('true');
+ fireEvent.click(toggle);
+ expect(document.documentElement.dataset.theme).toBe('light');
+ expect(localStorage.getItem('pinball-foundry.theme')).toBe('light');
+ cleanup();
+ render(<App/>);
+ expect(document.documentElement.dataset.theme).toBe('light');
+ fireEvent.click(screen.getByRole('button',{name:'Switch to dark theme'}));
+ expect(document.documentElement.dataset.theme).toBe('dark');
+});
+it('engraves real table details in the desktop machine base without adding decorative noise to accessibility',()=>{
+ render(<App/>);
+ const plaque=screen.getByLabelText('Machine details');
+ expect(plaque.textContent).toContain('TABLE 01');
+ expect(plaque.textContent).toContain('8 PARTS');
+ expect(plaque.textContent).toContain('FREE PLAY');
+ expect(document.querySelector('.machine-floor svg')?.getAttribute('aria-hidden')).toBe('true');
+ fireEvent.click(screen.getByRole('button',{name:/Midnight Assembly/}));
+ expect(screen.getByLabelText('Machine details').textContent).toContain('TABLE 02');
+ expect(screen.getByLabelText('Machine details').textContent).toContain('9 PARTS');
+ fireEvent.click(screen.getByRole('button',{name:'Workshop'}));
+ expect(screen.getByLabelText('Machine details').textContent).toContain('8 PARTS');
+ fireEvent.click(screen.getByRole('button',{name:'Add target'}));
+ expect(screen.getByLabelText('Machine details').textContent).toContain('BLUEPRINT');
+ expect(screen.getByLabelText('Machine details').textContent).toContain('9 PARTS');
+});
+it('offers wallet-free play, responsive accessible controls, pause and restart',()=>{
+ render(<App/>);
+ expect(screen.getByRole('heading',{name:'Pinball Foundry'})).toBeTruthy();
+ fireEvent.click(screen.getByRole('button',{name:'Launch ball'}));
+ expect(screen.getByText('Ball in play')).toBeTruthy();
+ expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
+ fireEvent.click(screen.getByRole('button',{name:'Pause game'}));
+ expect(screen.getByText('Paused')).toBeTruthy();
+ fireEvent.click(screen.getByRole('button',{name:'Restart run'}));
+ expect(screen.getByText('Ready to launch')).toBeTruthy();
+ expect(screen.getByRole('button',{name:'Left flipper'})).toBeTruthy();
+ expect(screen.getByRole('button',{name:'Right flipper'})).toBeTruthy();
+});
+it('builds, saves, loads and plays a custom table without a wallet',()=>{
+ render(<App/>);fireEvent.click(screen.getByRole('button',{name:'Workshop'}));
+ expect(screen.getByText('8 / 12 parts')).toBeTruthy();
+ fireEvent.click(screen.getByRole('button',{name:'Add target'}));
+ expect(screen.getByText('9 / 12 parts')).toBeTruthy();
+ fireEvent.change(screen.getByLabelText('Table title'),{target:{value:'Test Machine'}});
+ fireEvent.click(screen.getByRole('button',{name:'Save locally'}));
+ expect(JSON.parse(localStorage.getItem('pinball-foundry.layout.v1')!).title).toBe('Test Machine');
+ fireEvent.click(screen.getByRole('button',{name:'Delete selected part'}));expect(screen.getByText('8 / 12 parts')).toBeTruthy();
+ fireEvent.click(screen.getByRole('button',{name:'Load local save'}));expect(screen.getByText('9 / 12 parts')).toBeTruthy();
+ fireEvent.click(screen.getByRole('button',{name:'Test your table'}));
+ expect(screen.getByText('Ready to launch')).toBeTruthy();
+ expect(screen.getAllByText('Test Machine').length).toBeGreaterThan(0);
+});
+it('restores a saved workshop draft after a page reload without asking for Load local save',()=>{
+ render(<App/>);
+ fireEvent.click(screen.getByRole('button',{name:'Workshop'}));
+ fireEvent.click(screen.getByRole('button',{name:'Add target'}));
+ fireEvent.change(screen.getByLabelText('Table title'),{target:{value:'My Saved Machine'}});
+ fireEvent.click(screen.getByRole('button',{name:'Save locally'}));
+ expect(JSON.parse(localStorage.getItem('pinball-foundry.layout.v1')!).parts).toHaveLength(9);
+ cleanup();
+ render(<App/>);
+ fireEvent.click(screen.getByRole('button',{name:'Workshop'}));
+ expect(screen.getByLabelText('Table title')).toHaveProperty('value','My Saved Machine');
+ expect(screen.getByText('9 / 12 parts')).toBeTruthy();
+});
+it('never presents an undeployed registry or local score as an online success',()=>{
+ render(<App/>);fireEvent.click(screen.getByRole('button',{name:'Community'}));
+ expect(screen.getByText(/Registry not deployed/)).toBeTruthy();
+ expect((screen.getByRole('button',{name:'Publish to Sepolia'}) as HTMLButtonElement).disabled).toBe(true);
+});
+it('can leave a custom local-only playtest for an official uncharged standard run',()=>{
+ render(<App/>);fireEvent.click(screen.getByRole('button',{name:'Workshop'}));
+ fireEvent.change(screen.getByLabelText('Table title'),{target:{value:'Custom only'}});
+ fireEvent.click(screen.getByRole('button',{name:'Test your table'}));
+ fireEvent.click(screen.getByRole('button',{name:'Start official standard run ↗'}));
+ expect(screen.getAllByText('Copperwheel Works').length).toBeGreaterThan(0);
+ expect(screen.queryByRole('button',{name:'Start official standard run ↗'})).toBeNull();
+ expect(screen.getByText(/Official standard run/)).toBeTruthy();
+});
+it('explains when a locally valid title cannot be published to Sepolia',()=>{
+ render(<App/>);fireEvent.click(screen.getByRole('button',{name:'Workshop'}));
+ fireEvent.change(screen.getByLabelText('Table title'),{target:{value:'⚡ My workshop machine'}});
+ fireEvent.click(screen.getByRole('button',{name:'Community'}));
+ expect(screen.getByText(/printable ASCII/)).toBeTruthy();
+});

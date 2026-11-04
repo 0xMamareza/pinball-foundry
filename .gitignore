@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+playwright-report/
+test-results/
+coverage/
+broadcast/
+cache/
+out/
+# Local test transcripts with terminal formatting are not source artifacts.
+contracts/evidence/build-sizes.txt
+verifier/test-red-*.log

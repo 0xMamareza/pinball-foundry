@@ -1,0 +1,39 @@
+{
+  "foundryVersion": "forge Version: 1.7.1",
+  "solcVersion": "0.8.30+commit.73712a01",
+  "evmVersion": "prague",
+  "optimizer": {
+    "enabled": true,
+    "runs": 200
+  },
+  "abiMatchesArtifact": true,
+  "functionSelectors": {
+    "getTable(uint256)": "0x195e251f",
+    "publish(string,bytes)": "0x44e8fd08",
+    "tableCount()": "0x4155fc5b"
+  },
+  "eventTopic": "0x8227e126ecd1f7fe4bf69457c933e9db4038bb8050ec74126969b23dc394dead",
+  "errorSelectors": {
+    "InvalidLayout()": "0xde7b429a",
+    "InvalidTitle()": "0x31196de8",
+    "TableNotFound()": "0x340b9515"
+  },
+  "runtimeBytes": 2724,
+  "initcodeBytes": 2752,
+  "sha256": {
+    "src\\PinballFoundryRegistry.sol": "5232be3d21d3015bd54a0b546e567d1ddd83f56591fbc687b811b230dd3e46d7",
+    "test\\PinballFoundryRegistry.t.sol": "5bcc4aa1ceded0fd805c6e29876107ea9aa935d5c9da463943dbc44b60ccebb2",
+    "PinballFoundryRegistry.abi.json": "3cc893baa14acd2305dcb83e968595e667fb266f5a3f3efe904e810b94230be6",
+    "foundry.toml": "1416e25e574d3a57f3e33934f7719987ac4d5076d7685646f94f0e67b215ce5e"
+  },
+  "solidityTestsPassed": 15,
+  "fuzzTests": 3,
+  "runsPerFuzzTest": 512,
+  "localDeploymentTx": "0x43c5dab0350eca69ee620cd01da6439ffa550bf983e9ced5ee1c56acd0ac6639",
+  "localPublicationTxs": [
+    "0x1dccec4aa4cde70f804de45f0d6b946f15ca80cdd2875d56a9aa32a93f159bb5",
+    "0x83abadd3433e945e9a22af0a393bbf7e8075440114f869a976f17b8f3a705545"
+  ],
+  "anvilStopped": true,
+  "publicDeploymentPerformed": false
+}

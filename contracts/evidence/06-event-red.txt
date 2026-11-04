@@ -1,0 +1,17 @@
+Compiling 1 files with Solc 0.8.30
+Solc 0.8.30 finished in 193.41ms
+Compiler run successful!
+
+Ran 1 test for test/PinballFoundryRegistry.t.sol:PinballFoundryRegistryTest
+[FAIL: log != expected log] testEmitsPublicationWithIndexedIdentity() (gas: 110438)
+Suite result: FAILED. 0 passed; 1 failed; 0 skipped; finished in 795.40µs (235.20µs CPU time)
+
+Ran 1 test suite in 3.53ms (795.40µs CPU time): 0 tests passed, 1 failed, 0 skipped (1 total tests)
+
+Failing tests:
+Encountered 1 failing test in test/PinballFoundryRegistry.t.sol:PinballFoundryRegistryTest
+[FAIL: log != expected log] testEmitsPublicationWithIndexedIdentity() (gas: 110438)
+
+Encountered a total of 1 failing tests, 0 tests succeeded
+
+Tip: Run `forge test --rerun` to retry only the 1 failed test

@@ -1,0 +1,15 @@
+test_ephemeral_chain_publishes_and_reads_two_creators (test_smoke.SmokeTest.test_ephemeral_chain_publishes_and_reads_two_creators) ... FAIL
+
+======================================================================
+FAIL: test_ephemeral_chain_publishes_and_reads_two_creators (test_smoke.SmokeTest.test_ephemeral_chain_publishes_and_reads_two_creators)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\mruni\Projects\pinball-foundry\contracts\test\test_smoke.py", line 18, in test_ephemeral_chain_publishes_and_reads_two_creators
+    self.assertEqual(report.get("chainId"), 31337)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: None != 31337
+
+----------------------------------------------------------------------
+Ran 1 test in 0.056s
+
+FAILED (failures=1)

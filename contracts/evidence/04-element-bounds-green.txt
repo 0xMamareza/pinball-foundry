@@ -1,0 +1,12 @@
+Compiling 2 files with Solc 0.8.30
+Solc 0.8.30 finished in 233.76ms
+Compiler run successful!
+
+Ran 4 tests for test/PinballFoundryRegistry.t.sol:PinballFoundryRegistryTest
+[PASS] testPublishPersistsTable() (gas: 109765)
+[PASS] testRejectsInvalidElementsAtEveryIndex() (gas: 174309)
+[PASS] testRejectsInvalidTitles() (gas: 50327)
+[PASS] testRejectsMalformedLayout() (gas: 56790)
+Suite result: ok. 4 passed; 0 failed; 0 skipped; finished in 2.19ms (3.96ms CPU time)
+
+Ran 1 test suite in 5.04ms (2.19ms CPU time): 4 tests passed, 0 failed, 0 skipped (4 total tests)

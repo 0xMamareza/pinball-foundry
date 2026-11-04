@@ -1,0 +1,6 @@
+test_ephemeral_chain_publishes_and_reads_two_creators (test_smoke.SmokeTest.test_ephemeral_chain_publishes_and_reads_two_creators) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 1.887s
+
+OK

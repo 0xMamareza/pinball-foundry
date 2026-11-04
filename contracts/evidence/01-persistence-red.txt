@@ -1,0 +1,17 @@
+Compiling 2 files with Solc 0.8.30
+Solc 0.8.30 finished in 93.47ms
+Compiler run successful!
+
+Ran 1 test for test/PinballFoundryRegistry.t.sol:PinballFoundryRegistryTest
+[FAIL: Not implemented] testPublishPersistsTable() (gas: 11710)
+Suite result: FAILED. 0 passed; 1 failed; 0 skipped; finished in 664.40µs (143.00µs CPU time)
+
+Ran 1 test suite in 9.02ms (664.40µs CPU time): 0 tests passed, 1 failed, 0 skipped (1 total tests)
+
+Failing tests:
+Encountered 1 failing test in test/PinballFoundryRegistry.t.sol:PinballFoundryRegistryTest
+[FAIL: Not implemented] testPublishPersistsTable() (gas: 11710)
+
+Encountered a total of 1 failing tests, 0 tests succeeded
+
+Tip: Run `forge test --rerun` to retry only the 1 failed test

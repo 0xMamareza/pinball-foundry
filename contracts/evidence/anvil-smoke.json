@@ -1,0 +1,31 @@
+{
+  "chainId": 31337,
+  "contract": "0xd79f5e7807fb0cedd276e38ae9a4cd2364bce08a",
+  "deploymentTx": "0x43c5dab0350eca69ee620cd01da6439ffa550bf983e9ced5ee1c56acd0ac6639",
+  "tableCount": 2,
+  "runtimeMatchesArtifact": true,
+  "unknownIdRejected": true,
+  "tables": [
+    {
+      "creator": "0xda1ede05d5a23bbab421e071d682a7eb1c53e343",
+      "title": "Local smoke 1",
+      "layout": "0x03002828015050027878",
+      "publishedAt": 1793780249,
+      "id": 1,
+      "publicationTx": "0x1dccec4aa4cde70f804de45f0d6b946f15ca80cdd2875d56a9aa32a93f159bb5",
+      "eventVerified": true,
+      "gasUsed": 124696
+    },
+    {
+      "creator": "0x54cc2dbd704c318fdc9f9d05bbba4348596c2107",
+      "title": "Local smoke 2",
+      "layout": "0x03002828015050027878",
+      "publishedAt": 1793780249,
+      "id": 2,
+      "publicationTx": "0x83abadd3433e945e9a22af0a393bbf7e8075440114f869a976f17b8f3a705545",
+      "eventVerified": true,
+      "gasUsed": 107596
+    }
+  ],
+  "anvilStopped": true
+}

@@ -1,0 +1,23 @@
+Compiling 2 files with Solc 0.8.30
+Solc 0.8.30 finished in 400.99ms
+Compiler run successful!
+
+Ran 15 tests for test/PinballFoundryRegistry.t.sol:PinballFoundryRegistryTest
+[PASS] testAcceptsExactMinimumDistanceInBothAxes() (gas: 267695)
+[PASS] testAcceptsInclusiveCoordinateAndTitleBoundaries() (gas: 317186)
+[PASS] testEmitsPublicationWithIndexedIdentity() (gas: 114102)
+[PASS] testFuzzAcceptsThreeToTwelveElements(uint8) (runs: 512, μ: 142664, ~: 133390)
+[PASS] testFuzzElementValidationMatchesSignedDistance(uint8,uint8,uint8,uint8) (runs: 512, μ: 21066, ~: 19503)
+[PASS] testFuzzTitleByteValidation(uint8,uint8) (runs: 512, μ: 34635, ~: 15698)
+[PASS] testMultipleCreatorsReceiveSequentialImmutableIds() (gas: 280630)
+[PASS] testPublishPersistsTable() (gas: 116552)
+[PASS] testRejectionPreservesExistingState() (gas: 200621)
+[PASS] testRejectsEtherAndUnknownCalls() (gas: 25875)
+[PASS] testRejectsInvalidElementsAtEveryIndex() (gas: 182535)
+[PASS] testRejectsInvalidTitles() (gas: 51082)
+[PASS] testRejectsMalformedLayout() (gas: 57500)
+[PASS] testRejectsOverlapForEveryPair() (gas: 151426)
+[PASS] testRejectsUnknownTableIds() (gas: 128120)
+Suite result: ok. 15 passed; 0 failed; 0 skipped; finished in 33.98ms (109.75ms CPU time)
+
+Ran 1 test suite in 35.22ms (33.98ms CPU time): 15 tests passed, 0 failed, 0 skipped (15 total tests)

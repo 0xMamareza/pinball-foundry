@@ -1,0 +1,14 @@
+Compiling 2 files with Solc 0.8.30
+Solc 0.8.30 finished in 202.00ms
+Compiler run successful!
+
+Ran 6 tests for test/PinballFoundryRegistry.t.sol:PinballFoundryRegistryTest
+[PASS] testEmitsPublicationWithIndexedIdentity() (gas: 114050)
+[PASS] testPublishPersistsTable() (gas: 116358)
+[PASS] testRejectsInvalidElementsAtEveryIndex() (gas: 180897)
+[PASS] testRejectsInvalidTitles() (gas: 50327)
+[PASS] testRejectsMalformedLayout() (gas: 56790)
+[PASS] testRejectsOverlapForEveryPair() (gas: 150371)
+Suite result: ok. 6 passed; 0 failed; 0 skipped; finished in 2.25ms (6.02ms CPU time)
+
+Ran 1 test suite in 4.44ms (2.25ms CPU time): 6 tests passed, 0 failed, 0 skipped (6 total tests)
