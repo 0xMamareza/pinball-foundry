@@ -48,3 +48,7 @@ node scripts/visual-proof.mjs
 The browser script exercises keyboard and touch gameplay, pause, editor save/reload/playtest, the undeployed-registry guard and responsive layouts; it saves screenshots and diagnostics under the Hermes scratch directory by default. Set `PINBALL_EVIDENCE` to choose another evidence directory.
 
 Original artwork is drawn in Canvas/SVG and CSS. No NFT or SQK token is needed. Automated and simulated-RPC tests are not a substitute for live-wallet verification or production load testing.
+
+## Squeekchain Genesis project proof
+
+squeekchain-project: b5824a66-efe5-4596-848c-c149005b9a0d
