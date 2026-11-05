@@ -1,5 +1,6 @@
 import { chromium, devices } from '@playwright/test';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
 const URL = process.env.PINBALL_URL || 'http://127.0.0.1:5199/';
 const out = process.env.PINBALL_EVIDENCE || 'C:/Users/mruni/AppData/Local/hermes/cache/scratch/pinball-parent-proof';
@@ -13,6 +14,19 @@ function hook(page) {
   page.on('response', res => { if (res.url().includes('api.squeekchain.com')) diagnostics.requests.push({url:res.url(),status:res.status()}); });
 }
 const findings = {};
+async function landing(page,label){
+  await page.getByRole('heading',{name:'Squeek Pinball',exact:true}).waitFor();
+  assert.equal(await page.locator('canvas').count(),0,'Home must not mount a game simulation');
+  assert.match(await page.title(),/^Squeek Pinball/);
+  const layout=await page.evaluate(()=>{
+    const r=document.querySelector('.play-now').getBoundingClientRect();
+    return {width:innerWidth,height:innerHeight,scrollWidth:document.documentElement.scrollWidth,play:{top:r.top,bottom:r.bottom},touch:matchMedia('(pointer:coarse)').matches,reduce:matchMedia('(prefers-reduced-motion: reduce)').matches};
+  });
+  assert(layout.scrollWidth<=layout.width,'Landing must not overflow horizontally');
+  assert(layout.play.top>=0&&layout.play.bottom<=layout.height,'Play must be visible without scrolling');
+  await page.screenshot({path:`${out}/00-${label}.png`,fullPage:true});
+  return layout;
+}
 try {
   const context = await browser.newContext({ viewport: {width:1440,height:900}, reducedMotion:'reduce' });
   const page = await context.newPage(); hook(page);
@@ -32,9 +46,34 @@ try {
     }
   });
   await page.goto(URL,{waitUntil:'domcontentloaded'});
+  findings.landingDesktop=await landing(page,'landing-desktop');
+  const html=await (await page.request.get(URL)).text();
+  const asset=html.match(/src="([^\"]+\/assets\/[^\"]+\.js)"/)?.[1]??html.match(/src="(\/assets\/[^\"]+\.js)"/)?.[1];
+  assert(asset,'Must exercise a production build, not a development server');
+  const served=await (await page.request.get(new globalThis.URL(asset,URL).href)).body();
+  const built=await readFile(new globalThis.URL('../dist'+asset,import.meta.url));
+  assert.deepEqual(served,built,'Served JavaScript must match this candidate build');
+  findings.build={asset,sha256:createHash('sha256').update(built).digest('hex')};
+  const favicon=await page.locator('link[rel="icon"]').getAttribute('href');
+  assert.equal(favicon,'/favicon.svg');
+  assert.deepEqual(await (await page.request.get(new globalThis.URL(favicon,URL).href)).body(),await readFile(new globalThis.URL('../public/favicon.svg',import.meta.url)));
+  const word=page.getByRole('button',{name:'Play Squeek Pinball',exact:true});
+  const before=await word.boundingBox();
+  await page.locator('.letter-cell').nth(3).hover();
+  assert.deepEqual(await page.locator('.letter-cell').evaluateAll(cells=>cells.map(c=>c.dataset.emphasis)),['idle','idle','neighbor','active','neighbor','idle']);
+  assert.deepEqual(await word.boundingBox(),before,'Hover must not shift wordmark geometry');
+  await page.screenshot({path:`${out}/00-landing-hover.png`,fullPage:true});
+  await page.mouse.move(2,2);
+  // Reach the wordmark through real keyboard input, not scripted focus.
+  for(let i=0;i<12&&!(await word.evaluate(el=>el===document.activeElement));i++)await page.keyboard.press('Tab');
+  assert(await word.evaluate(el=>el===document.activeElement),'Wordmark must be keyboard reachable');
+  assert.equal(await page.locator('.letter-cell').nth(2).getAttribute('data-emphasis'),'active');
+  await page.screenshot({path:`${out}/00-landing-keyboard.png`,fullPage:true});
+  await page.keyboard.press('Enter');
+  await page.getByRole('button',{name:'Continue to Play',exact:true}).click();
   await page.locator('canvas').waitFor();
   await page.waitForTimeout(1200);
-  assert.match(await page.title(), /Pinball Foundry/);
+  assert.match(await page.title(), /Squeek Pinball/);
   findings.entry = { url:page.url(), title:await page.title(), canvas:await page.locator('canvas').evaluate(c => [c.width,c.height]), settlement:await page.locator('.settlement-card').innerText() };
   const desktopLayout=await page.evaluate(()=>{
     const box=(selector)=>{const r=document.querySelector(selector).getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height,bottom:r.bottom};};
@@ -108,7 +147,15 @@ try {
     window.__mobileAudioStarts=0;
     if(window.OscillatorNode){const start=OscillatorNode.prototype.start;OscillatorNode.prototype.start=function(...args){window.__mobileAudioStarts++;return start.apply(this,args);};}
   });
-  await mp.goto(URL,{waitUntil:'domcontentloaded'}); await mp.locator('canvas').waitFor();
+  await mp.goto(URL,{waitUntil:'domcontentloaded'});
+  findings.landingMobile=await landing(mp,'landing-mobile');
+  await mp.getByRole('button',{name:'Open Workshop',exact:true}).tap();
+  await mp.getByRole('button',{name:'Continue to Workshop',exact:true}).tap();
+  assert(await mp.getByLabel('Table title').isVisible());
+  await mp.getByRole('link',{name:'Squeek Pinball home'}).tap();
+  assert.equal(await mp.locator('canvas').count(),0);
+  await mp.getByRole('button',{name:'Play now',exact:true}).tap();
+  await mp.locator('canvas').waitFor();
   const sizes=await mp.evaluate(()=>({width:innerWidth,scrollWidth:document.documentElement.scrollWidth,touch:matchMedia('(pointer:coarse)').matches,reduce:matchMedia('(prefers-reduced-motion: reduce)').matches}));
   assert(sizes.touch && sizes.reduce && sizes.scrollWidth<=sizes.width);
   assert.equal(await mp.locator('.machine-floor').evaluate(el=>getComputedStyle(el).display),'none','The desktop schematic must not lengthen mobile play');
@@ -120,7 +167,15 @@ try {
   await mp.screenshot({path:`${out}/06-mobile.png`,fullPage:true});
   await mobile.close();
   const short = await browser.newContext({viewport:{width:1280,height:640}});
-  const sp=await short.newPage();hook(sp);await sp.goto(URL,{waitUntil:'domcontentloaded'});await sp.locator('canvas').waitFor();
+  const sp=await short.newPage();hook(sp);await sp.goto(URL,{waitUntil:'domcontentloaded'});
+  findings.landingShort=await landing(sp,'landing-short');
+  await sp.locator('.letter-cell').nth(1).hover();
+  await sp.waitForTimeout(450);
+  const movingTransform=await sp.locator('.letter-cell').nth(1).locator('span').evaluate(el=>getComputedStyle(el).transform);
+  assert.equal(movingTransform,'matrix(1.12, 0, 0, 1.08, 0, 0)');
+  await sp.getByRole('button',{name:'Reduce motion'}).click();
+  assert.equal(await sp.locator('.letter-cell>span').first().evaluate(el=>getComputedStyle(el).transitionDuration),'0s');
+  await sp.getByRole('button',{name:'Play now',exact:true}).click();await sp.getByRole('button',{name:'Continue to Play',exact:true}).click();await sp.locator('canvas').waitFor();
   findings.short={width:await sp.evaluate(()=>innerWidth),scrollWidth:await sp.evaluate(()=>document.documentElement.scrollWidth)};
   await sp.screenshot({path:`${out}/07-short.png`,fullPage:true});
   await short.close();
@@ -136,8 +191,10 @@ try {
   await tp.getByRole('button',{name:'Switch to dark theme'}).waitFor();
   const lightTheme=await colors();
   assert.deepEqual(lightTheme,{theme:'light',background:'rgb(243, 240, 231)',meta:'#f3f0e7'});
+  findings.landingLight=await landing(tp,'landing-light');
   await tp.screenshot({path:`${out}/08-light-option.png`,fullPage:true});
   await tp.getByRole('button',{name:'Community',exact:true}).click();
+  await tp.getByRole('button',{name:'Continue to Community',exact:true}).click();
   assert.equal((await colors()).theme,'light');
   await tp.getByRole('button',{name:'Switch to dark theme'}).click();
   await tp.reload();

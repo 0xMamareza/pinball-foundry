@@ -1,9 +1,53 @@
 import { beforeEach,afterEach,expect,it,vi } from 'vitest';
 import { render,screen,fireEvent,cleanup } from '@testing-library/react';
 import App from './App';
+import {TABLES,exportTable} from './layout';
 vi.mock('./chain',async()=>({...await vi.importActual('./chain'),isRegistryConfigured:()=>false,connectWallet:vi.fn(),publishTable:vi.fn(),listTables:vi.fn()}));
-beforeEach(()=>{Element.prototype.scrollIntoView=vi.fn();localStorage.clear();history.replaceState(null,'','/');vi.stubGlobal('fetch',vi.fn().mockRejectedValue(Error('offline')));vi.stubGlobal('requestAnimationFrame',vi.fn(()=>1));vi.stubGlobal('cancelAnimationFrame',vi.fn());vi.spyOn(HTMLCanvasElement.prototype,'getContext').mockReturnValue(null);});
+beforeEach(()=>{sessionStorage.setItem('pinball-foundry.warning.v2','accepted');Element.prototype.scrollIntoView=vi.fn();localStorage.clear();history.replaceState(null,'','/');vi.stubGlobal('fetch',vi.fn().mockRejectedValue(Error('offline')));vi.stubGlobal('requestAnimationFrame',vi.fn(()=>1));vi.stubGlobal('cancelAnimationFrame',vi.fn());vi.spyOn(HTMLCanvasElement.prototype,'getContext').mockReturnValue(null);});
 afterEach(()=>{cleanup();vi.restoreAllMocks();vi.unstubAllGlobals();});
+it('opens a shared blueprint directly in Workshop rather than hiding it behind Home',()=>{
+ history.replaceState(null,'','/#table='+exportTable({...TABLES[0],title:'Shared copper'}));
+ render(<App/>);
+ expect(screen.getByLabelText('Table title')).toHaveProperty('value','Shared copper');
+ expect(screen.queryByRole('button',{name:'Play now'})).toBeNull();
+ fireEvent.click(screen.getByRole('link',{name:'Squeek Pinball home'}));
+ fireEvent.click(screen.getByRole('button',{name:'Open Workshop'}));
+ expect(screen.getByLabelText('Table title')).toHaveProperty('value','Shared copper');
+});
+it('opens on a wallet-free landing without running the game and returns home from play',()=>{
+ render(<App/>);
+ expect(screen.getByRole('heading',{name:'Squeek Pinball'})).toBeTruthy();
+ expect(document.querySelector('canvas')).toBeNull();
+ expect(requestAnimationFrame).not.toHaveBeenCalled();
+ document.documentElement.scrollTop=200;
+ fireEvent.click(screen.getByRole('button',{name:'Play now'}));
+ expect(document.activeElement).toBe(document.getElementById('main'));
+ expect(document.documentElement.scrollTop).toBe(0);
+ expect(screen.getByRole('button',{name:'Launch ball'})).toBeTruthy();
+ fireEvent.click(screen.getByRole('link',{name:'Squeek Pinball home'}));
+ expect(document.querySelector('canvas')).toBeNull();
+ fireEvent.click(screen.getByRole('button',{name:'Open Workshop'}));
+ expect(screen.getByLabelText('Table title')).toBeTruthy();
+});
+it('gives the wordmark a stable active letter, softer neighbors and a keyboard play action',()=>{
+ render(<App/>);
+ const word=screen.getByRole('button',{name:'Play Squeek Pinball'});
+ const letters=word.querySelectorAll('[data-emphasis]');
+ expect(letters).toHaveLength(6);
+ fireEvent.pointerEnter(letters[3]);
+ expect(letters[3].getAttribute('data-emphasis')).toBe('active');
+ expect(letters[2].getAttribute('data-emphasis')).toBe('neighbor');
+ expect(letters[4].getAttribute('data-emphasis')).toBe('neighbor');
+ expect(letters[0].getAttribute('data-emphasis')).toBe('idle');
+ fireEvent.pointerLeave(word);
+ expect(letters[3].getAttribute('data-emphasis')).toBe('idle');
+ fireEvent.focus(word);
+ expect(letters[2].getAttribute('data-emphasis')).toBe('active');
+ fireEvent.blur(word);
+ expect(letters[2].getAttribute('data-emphasis')).toBe('idle');
+ fireEvent.click(word);
+ expect(screen.getByRole('button',{name:'Launch ball'})).toBeTruthy();
+});
 it('defaults to the requested dark theme and persists a reversible light preference',()=>{
  render(<App/>);
  expect(document.documentElement.dataset.theme).toBe('dark');
@@ -20,6 +64,7 @@ it('defaults to the requested dark theme and persists a reversible light prefere
 });
 it('engraves real table details in the desktop machine base without adding decorative noise to accessibility',()=>{
  render(<App/>);
+ fireEvent.click(screen.getByRole('button',{name:'Play now'}));
  const plaque=screen.getByLabelText('Machine details');
  expect(plaque.textContent).toContain('TABLE 01');
  expect(plaque.textContent).toContain('8 PARTS');
@@ -36,7 +81,8 @@ it('engraves real table details in the desktop machine base without adding decor
 });
 it('offers wallet-free play, responsive accessible controls, pause and restart',()=>{
  render(<App/>);
- expect(screen.getByRole('heading',{name:'Pinball Foundry'})).toBeTruthy();
+ fireEvent.click(screen.getByRole('button',{name:'Play now'}));
+ expect(screen.getByRole('heading',{name:'Squeek Pinball'})).toBeTruthy();
  fireEvent.click(screen.getByRole('button',{name:'Launch ball'}));
  expect(screen.getByText('Ball in play')).toBeTruthy();
  expect(Element.prototype.scrollIntoView).toHaveBeenCalled();

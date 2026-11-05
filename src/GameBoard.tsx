@@ -8,21 +8,23 @@ import { paint } from './paint';
 import { TABLES,type Table } from './layout';
 import type { Variant } from './settlement';
 import { Mascot } from './Mascot';
+import {invalidateRankedRun,type RankedTicket} from './ranked-client';
 
 const snapshot=(g:Game)=>({score:g.score,combo:g.combo,lives:g.lives,status:g.status});
-type Props={table:Table;variant:Variant;audio:ArcadeAudio;muted:boolean;reduced:boolean;editing?:boolean;selected?:number;onSelect?:(i:number)=>void;onMove?:(i:number,x:number,y:number)=>void;onEdit?:()=>void;onRestart?:()=>void;onStandard?:()=>void};
-export default function GameBoard({table,variant,audio,muted,reduced,editing=false,selected=-1,onSelect,onMove,onEdit,onRestart,onStandard}:Props){
+type Props={table:Table;variant:Variant;audio:ArcadeAudio;muted:boolean;reduced:boolean;editing?:boolean;selected?:number;onSelect?:(i:number)=>void;onMove?:(i:number,x:number,y:number)=>void;onEdit?:()=>void;onRestart?:()=>void;onStandard?:()=>void;ticket?:RankedTicket|null;practiceOnly?:boolean};
+export default function GameBoard({table,variant,audio,muted,reduced,editing=false,selected=-1,onSelect,onMove,onEdit,onRestart,onStandard,ticket=null,practiceOnly=false}:Props){
  const canvas=useRef<HTMLCanvasElement>(null), game=useRef(createGame(table.parts,variant.status==='safe'?variant.palette:null));
  const [hud,setHud]=useState(()=>snapshot(game.current)),[paused,setPaused]=useState(false),[best,setBest]=useState(0);
  const recording=useRef(createRecording()),finished=useRef(false),[result,setResult]=useState<FinishedRun|null>(null),[generation,setGeneration]=useState(0);
- const rankedTable=variant.status==='offline'?officialTable(table):null;
+ const [runTicket,setRunTicket]=useState(ticket);
+ const rankedTable=variant.status==='offline'&&!practiceOnly?officialTable(table):null;
  useEffect(()=>{if(editing){game.current.parts=table.parts;game.current.hits=table.parts.map(()=>-100);}},[table,editing]);
  const keys=useRef(new Set<string>()),pointers=useRef(new Map<number,'left'|'right'>()),charge=useRef<number|null>(null),[charging,setCharging]=useState(false);
  const settings=useRef({paused,muted,reduced});settings.current={paused,muted,reduced};
  const unlockAudio=()=>{audio.unlock();};
  const sync=()=>setHud(snapshot(game.current));
  const shoot=(power=1)=>{if(editing||settings.current.paused||game.current.status!=='ready')return;unlockAudio();recordLaunch(game.current,recording.current,power);audio.play('launch');canvas.current?.closest('.machine-column')?.scrollIntoView?.({block:'start',behavior:'instant'});sync();};
- const restart=()=>{onRestart?.();game.current=createGame(table.parts,variant.status==='safe'?variant.palette:null);recording.current=createRecording();finished.current=false;setResult(null);setGeneration(n=>n+1);setPaused(false);keys.current.clear();pointers.current.clear();charge.current=null;setCharging(false);sync();};
+ const restart=()=>{invalidateRankedRun(runTicket);setRunTicket(null);onRestart?.();game.current=createGame(table.parts,variant.status==='safe'?variant.palette:null);recording.current=createRecording();finished.current=false;setResult(null);setGeneration(n=>n+1);setPaused(false);keys.current.clear();pointers.current.clear();charge.current=null;setCharging(false);sync();};
  const clearInput=()=>{keys.current.clear();pointers.current.clear();charge.current=null;setCharging(false);};
  useEffect(()=>{
   const keyDown=(e:KeyboardEvent)=>{
@@ -50,7 +52,7 @@ export default function GameBoard({table,variant,audio,muted,reduced,editing=fal
    if(!editing&&g.status==='over'&&!finished.current){
     finished.current=true;
     const proof=rankedTable?finishRecording(g,recording.current):null;
-    setResult({score:g.score,tableId:rankedTable?.tableId??null,proof,reason:!rankedTable?'Custom and settlement-charged runs are local only. Start an official standard run for verified rankings.':!proof?'Replay exceeded the 72,000-step limit (10 minutes of simulation). This score is local only.':''});
+    setResult({score:g.score,tableId:rankedTable?.tableId??null,proof,reason:!rankedTable?'Custom, workshop and settlement-charged runs are practice only. Start an official standard run for ranked eligibility.':!proof?'Replay exceeded the 72,000-step limit (10 minutes of simulation). This score is local only.':''});
    }
    const fresh=g.events.filter(event=>!notified.has(event));
    for(const event of fresh)notified.add(event);
@@ -77,7 +79,7 @@ export default function GameBoard({table,variant,audio,muted,reduced,editing=fal
   <span>{side==='left'?'↖':'↗'}</span><strong>{side==='left'?'Left':'Right'}</strong><kbd>{side==='left'?'A / ←':'D / →'}</kbd></button>;
  return <>
   <section className="machine-column" aria-label={editing?'Table editor canvas':'Pinball machine'}>
-   <div className="machine-head"><span><i className="status-dot"/> {editing?'WORKSHOP MODE':'FREE PLAY · NO WALLET'}</span><span>EST. 2026</span></div>
+   <div className="machine-head"><span><i className="status-dot"/> {editing?'WORKSHOP MODE':runTicket?'RANKED · SEPOLIA START CONFIRMED':'FREE PLAY · NO WALLET'}</span><span>EST. 2026</span></div>
    <div className="cabinet">
     <div className="cabinet-title"><span>✦</span><strong>{table.title}</strong><span>✦</span></div>
     <div className="playfield">
@@ -112,10 +114,10 @@ export default function GameBoard({table,variant,audio,muted,reduced,editing=fal
   </section>
   {!editing&&<aside className="right-rail">
    <section className="score-panel"><div className="panel-top"><span>YOUR SHIFT</span><span>↗</span></div><span className="score-label">SCORE</span><output aria-label="Score" className="score-value">{String(hud.score).padStart(6,'0')}</output><div className="score-bottom"><div><span>COMBO</span><strong>×{hud.combo}</strong></div><div><span>BALLS LEFT</span><strong aria-label={hud.lives+' balls left'}>{Array.from({length:3},(_,i)=><i key={i} className={i<hud.lives?'ball-token':'ball-token spent'}/>)}</strong></div></div><div className="best-score">SESSION BEST <b>{best.toLocaleString()}</b></div></section>
-   <ScoreResults key={generation} result={result} tableId={rankedTable?.tableId??null} title={table.title} onStandard={onStandard}/>
+   <ScoreResults key={generation} ticket={runTicket} result={result} tableId={rankedTable?.tableId??null} title={table.title} onStandard={onStandard}/>
    <section className="field-guide"><span className="eyebrow">THE FIELD GUIDE</span><h3>Find your rhythm.</h3><p>Keep the ball working. Chain hits within 2.5 seconds to build a <b>5× combo.</b></p><ul><li><span className="part-icon bumper-icon">◉</span><div><strong>Wheel bumpers</strong><small>100 points · a little extra kick</small></div></li><li><span className="part-icon spinner-icon">╱</span><div><strong>Spinners</strong><small>150 points · keep it turning</small></div></li><li><span className="part-icon target-icon">◆</span><div><strong>Foundry targets</strong><small>250 points · make it count</small></div></li></ul></section>
    <section className="pip-card"><div className="pip-art"><Mascot/></div><span className="eyebrow">PIP · FLOOR MANAGER</span><p>“A good machine starts<br/>with a little curiosity.”</p><button onClick={onEdit}>Build your own table <span>↗</span></button></section>
-   <p className="local-disclaimer">Play first. Submit only if you choose.<br/>No tokens or prizes.</p>
+   <p className="local-disclaimer">Practice freely. Ranked records automatically.<br/>No tokens or prizes.</p>
   </aside>}
  </>;
 }

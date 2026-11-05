@@ -1,6 +1,6 @@
 # Pinball Foundry registry
 
-Standalone, dependency-free Solidity registry for explicit table publication. Intended deployment network: **Ethereum Sepolia**. The contract is chain-agnostic; nothing has been deployed to a public network by this work. Local game/editor actions do not publish anything; a user must explicitly send `publish` from their wallet and pay the network's transaction gas. This contract never charges or accepts a publication payment.
+Standalone, dependency-free Solidity **table-publication registry**. This contract has **not** been deployed/configured for the public game. The separately deployed `PinballFoundryRankedStart` contract is not this registry; see the root README for the live ranked flow. Intended registry network: **Ethereum Sepolia**. Local game/editor actions do not publish anything; a user must explicitly send `publish` from their wallet and pay the network's transaction gas. This contract never charges or accepts a publication payment.
 
 ## Interface and frontend contract
 
@@ -86,4 +86,4 @@ Publication is public, permanent and permissionless. Do not put secrets or perso
 
 There are **no tokens, stakes, NFTs, ownership transfers, administrators, upgrades, rewards, payouts, score submissions, signature claims, arbitrary external calls, payable functions, fallback or receive handler**. Ordinary calls carrying Ether revert; forced Ether transfers are outside this publication API. `creator` is attribution of the publishing account only. Local gameplay scores are not onchain results or verified claims.
 
-No public deployment, user key use, Git push or independent security audit was performed. Public deployment and frontend address/network configuration remain separate integration tasks.
+At the time of this **registry-only validation record**, no registry deployment, user key use or independent security audit was performed. The optional registry remains unconfigured on the public site. The separately deployed ranked-start contract and offchain-score service are documented in the root README; historical evidence here must not be read as their current status.

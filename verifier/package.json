@@ -3,17 +3,27 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "engines": { "node": ">=24.20.0 <25" },
+  "packageManager": "npm@11.19.0",
   "scripts": {
     "test": "vitest run --config vitest.config.ts",
     "typecheck": "tsc --noEmit",
     "bundle": "npm test && npm run typecheck && wrangler deploy --dry-run --outdir dist",
-    "test:local": "vitest run --config vitest.integration.config.ts"
+    "test:local": "vitest run --config vitest.integration.config.ts",
+    "test:vps": "vitest run --config vitest.config.ts test/vps-db.test.ts test/vps-http.test.ts test/vps-bundle.test.ts test/vps-configuration.test.ts",
+    "build:vps": "node scripts/build-vps.mjs",
+    "bundle:vps": "npm test && npm run typecheck && npm run build:vps",
+    "start:vps": "node dist/vps/server.mjs",
+    "build:vps:v2": "node scripts/build-vps.mjs --v2",
+    "bundle:vps:v2": "npm test && npm run typecheck && npm run build:vps:v2",
+    "start:vps:v2": "node dist/vps-v2/server.mjs"
   },
   "dependencies": {
     "viem": "2.57.16"
   },
   "devDependencies": {
     "@types/node": "26.6.6",
+    "esbuild": "0.28.2",
     "miniflare": "5.20261103.0-beta",
     "typescript": "7.0.2",
     "vitest": "5.0.5",

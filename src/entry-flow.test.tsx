@@ -1,0 +1,46 @@
+import {afterEach,beforeEach,expect,it,vi} from 'vitest';
+import {render,screen,fireEvent,cleanup,waitFor} from '@testing-library/react';
+import App from './App';
+import {connectWallet} from './chain';
+vi.mock('./chain',async()=>({...await vi.importActual('./chain'),isRegistryConfigured:()=>false,connectWallet:vi.fn().mockResolvedValue({address:'0x1111111111111111111111111111111111111111'})}));
+beforeEach(()=>{sessionStorage.clear();localStorage.clear();history.replaceState(null,'','/');vi.stubGlobal('fetch',vi.fn().mockRejectedValue(Error('offline')));vi.stubGlobal('requestAnimationFrame',vi.fn(()=>1));vi.stubGlobal('cancelAnimationFrame',vi.fn());vi.spyOn(HTMLCanvasElement.prototype,'getContext').mockReturnValue(null);});
+afterEach(()=>{cleanup();vi.restoreAllMocks();vi.unstubAllGlobals();vi.clearAllMocks();});
+it('warns only after landing entry, supports Back and Continue, and keeps practice wallet-free',()=>{
+ render(<App/>);
+ expect(screen.queryByRole('dialog')).toBeNull();
+ fireEvent.click(screen.getByRole('button',{name:'Play now'}));
+ const dialog=screen.getByRole('dialog',{name:'A safer way to play'});
+ expect(dialog.textContent).toMatch(/burner wallet/i);expect(dialog.textContent).toMatch(/unaudited/);expect(dialog.textContent).toMatch(/Ethereum Sepolia/);
+ expect(document.querySelector('canvas')).toBeNull();
+ fireEvent.click(screen.getByRole('button',{name:'Back to landing'}));
+ expect(screen.queryByRole('dialog')).toBeNull();
+ fireEvent.click(screen.getByRole('button',{name:'Workshop'}));
+ fireEvent.click(screen.getByRole('button',{name:'Continue to Workshop'}));
+ expect(screen.getByLabelText('Table title')).toBeTruthy();
+ fireEvent.click(screen.getByRole('button',{name:'Play'}));
+ expect(screen.queryByRole('dialog')).toBeNull();
+ expect(screen.getByRole('button',{name:'Practice · no wallet'})).toBeTruthy();
+ expect((screen.getByRole('button',{name:'Start ranked · Sepolia'}) as HTMLButtonElement).disabled).toBe(true);
+ fireEvent.click(screen.getByRole('button',{name:'Launch ball'}));
+ expect(connectWallet).not.toHaveBeenCalled();
+});
+it('offers Connect Wallet on the landing page, warns before connecting, and reports success there',async()=>{
+ render(<App/>);
+ const connect=screen.getByRole('button',{name:'Connect Wallet'});
+ fireEvent.click(connect);
+ expect(screen.getByRole('dialog',{name:'A safer way to play'})).toBeTruthy();
+ expect(connectWallet).not.toHaveBeenCalled();
+ fireEvent.click(screen.getByRole('button',{name:'Back to landing'}));
+ expect(connectWallet).not.toHaveBeenCalled();
+ fireEvent.click(connect);
+ fireEvent.click(screen.getByRole('button',{name:'Continue to Connect Wallet'}));
+ await waitFor(()=>expect(connectWallet).toHaveBeenCalledOnce());
+ expect(screen.getByText(/Wallet connected on Sepolia/)).toBeTruthy();
+ expect(screen.getByRole('button',{name:'Play now'})).toBeTruthy();
+});
+it('connects on the main game page even without a configured registry',async()=>{
+ render(<App/>);fireEvent.click(screen.getByRole('button',{name:'Play now'}));fireEvent.click(screen.getByRole('button',{name:'Continue to Play'}));
+ const connect=screen.getByRole('button',{name:'Connect Wallet'});expect((connect as HTMLButtonElement).disabled).toBe(false);fireEvent.click(connect);
+ await waitFor(()=>expect(connectWallet).toHaveBeenCalledOnce());
+ expect(screen.queryByRole('button',{name:/Submit score/})).toBeNull();
+});

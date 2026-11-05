@@ -1,49 +1,30 @@
-import {useState} from 'react';
+import {useEffect,useRef,useState} from 'react';
+import {submitRankedScore,readRankedLeaderboard,type RankedTicket,type RecordedScore} from './ranked-client';
 import type {Hex} from 'viem';
-import {connectWallet} from './chain';
-import {leaderboardConfig,verifyFinalScore,submitFinalScore,readLeaderboard,type SignedScore,type Leader} from './score-chain';
 import type {ScoreProof} from './score-proof';
 export type FinishedRun={score:number;tableId:Hex|null;proof:ScoreProof|null;reason:string};
-const message=(error:unknown)=>error instanceof Error?error.message:'Request failed. Try again.';
-export default function ScoreResults({result,tableId,title,onStandard}:{result:FinishedRun|null;tableId:Hex|null;title:string;onStandard?:()=>void}){
- const configured=!!leaderboardConfig();
- const [busy,setBusy]=useState(false),[status,setStatus]=useState(''),[signed,setSigned]=useState<SignedScore|null>(null),[hash,setHash]=useState<Hex|null>(null),[confirmed,setConfirmed]=useState(false),[leaders,setLeaders]=useState<readonly Leader[]|null>(null),[rank,setRank]=useState<number|null>(null),[best,setBest]=useState<bigint|null>(null);
- const eligible=!!result?.tableId&&!!result.proof;
- const verify=async()=>{
-  if(!result?.proof||!result.tableId||!configured)return;
-  setBusy(true);setStatus('Connect on Ethereum Sepolia to verify this replay. No transaction yet.');setSigned(null);
-  try{
-   const {address}=await connectWallet();setStatus('Replaying your finished run on the verifier… No gas is used.');
-   const proof=await verifyFinalScore({tableId:result.tableId,score:result.score,proof:result.proof},address);
-   setSigned(proof);setStatus('Verifier signed the matching final score. Not submitted onchain. Submit only if you want a public record.');
-  }catch(e){setStatus(message(e));}finally{setBusy(false);}
- };
- const submit=async()=>{
-  if(!signed||busy)return;setBusy(true);setStatus('Approve the score transaction in your wallet. Sepolia test ETH gas is required.');
-  try{const receipt=await submitFinalScore(signed,h=>{setHash(h);setStatus('Transaction broadcast. Waiting for the Sepolia receipt and exact record readback…');});
-   setConfirmed(true);setHash(receipt.hash);setLeaders(receipt.leaders);setRank(receipt.rank);setBest(receipt.best);setStatus('Confirmed on Sepolia: matching score event, nonce and best score read back.');
-  }catch(e){setStatus(message(e));}finally{setBusy(false);}
- };
- const refresh=async()=>{
-  if(!tableId||!configured)return;setBusy(true);setStatus('Reading the Sepolia top 20…');setLeaders(null);
-  try{setLeaders(await readLeaderboard(tableId));setStatus('Leaderboard read directly from Ethereum Sepolia.');}catch(e){setStatus(message(e));}finally{setBusy(false);}
- };
- return <section className="leaderboard-panel" aria-label="Final score and Sepolia leaderboard">
-  <div className="panel-top"><span>{result?'SHIFT RESULTS':'VERIFIED RANKINGS'}</span><span>↗</span></div>
-  {result?<><h3 tabIndex={-1}>Shift complete</h3><output className="final-score" aria-label="Final local score">{result.score.toLocaleString()}</output><p>Game-generated local score · {confirmed?'onchain submission confirmed':'not submitted onchain'}.</p>
+export default function ScoreResults({result,tableId,title,onStandard,ticket=null}:{result:FinishedRun|null;tableId:Hex|null;title:string;onStandard?:()=>void;ticket?:RankedTicket|null}){
+ const [record,setRecord]=useState<'pending'|'recorded'|'failed'>('pending'),[recordError,setRecordError]=useState(''),[attempt,setAttempt]=useState(0),[leaders,setLeaders]=useState<RecordedScore[]|null>(null),[leaderError,setLeaderError]=useState('');
+ useEffect(()=>{if(!ticket||!result)return;let active=true;setRecord('pending');setRecordError('');if(!result.proof||result.tableId!==ticket.tableId){setRecord('failed');setRecordError('This replay is not eligible for the ranked start.');return;}submitRankedScore(ticket,result.score,result.proof).then(()=>{if(!active)return;setRecord('recorded');readRankedLeaderboard(ticket.tableId,ticket.config).then(rows=>{if(active){setLeaders(rows);setLeaderError('');}},()=>{if(active)setLeaderError('Score saved, but the leaderboard could not be refreshed. No rank is claimed.');});},()=>{if(active){setRecord('failed');setRecordError('Recording could not be confirmed. Your local score is preserved; do not send another wallet transaction.');}});return()=>{active=false;};},[ticket,result,attempt]);
+ const [shareStatus,setShareStatus]=useState(''),[copyFallback,setCopyFallback]=useState(false);
+ const fallbackRef=useRef<HTMLTextAreaElement>(null);
+ useEffect(()=>{if(copyFallback){fallbackRef.current?.focus();fallbackRef.current?.select();}},[copyFallback]);
+ const text=result?`I scored ${result.score.toLocaleString()} points on ${tableId?title:'a custom table'} in Squeek Pinball. Your shift next?`:'';
+ const copy=async()=>{try{if(!navigator.clipboard)throw Error();await navigator.clipboard.writeText(text);setShareStatus('Result copied.');setCopyFallback(false);}catch{setShareStatus('Select the result text below to copy.');setCopyFallback(true);}};
+ const share=async()=>{try{await navigator.share({title:'Squeek Pinball · shift complete',text});setShareStatus('Share sheet opened.');}catch(error){if((error as Error).name!=='AbortError')setShareStatus('Sharing unavailable. Try Copy result instead.');}};
+ return <section className="leaderboard-panel result-card" aria-label="Final score and sharing">
+  <div className="panel-top"><span>{result?'YOUR SHIFT RECEIPT':'PLAY FIRST. FIND YOUR RHYTHM.'}</span><span>✦</span></div>
+  {result?<><div className="result-seal" aria-hidden="true">✳</div><h3>Shift complete</h3><output className="final-score" aria-label="Final local score">{result.score.toLocaleString()}</output><span className="result-points">POINTS · {title}</span>
+   <div className="record-state" role="status"><b>{ticket?(record==='pending'?'Pending · verifying replay':record==='recorded'?'Recorded · offchain leaderboard':'Unable to record'):'Practice · local result'}</b><p>{ticket?(record==='pending'?'Automatically replaying your finished run. No wallet action needed.':record==='recorded'?'Replay verified and exact saved result read back. Your score is offchain, not on Ethereum.':recordError):'Not sent to the leaderboard. Start a ranked run before play to record a replay-verified score.'}</p></div>
+   {ticket&&record==='failed'&&result.proof&&<button onClick={()=>setAttempt(n=>n+1)}>Retry recording · no wallet</button>}
+   {ticket&&record!=='recorded'&&<p className="small-note">Your private replay is kept only in this tab’s memory for retry. Reloading, restarting or leaving discards it. Never share a replay authorization or nonce.</p>}
    {result.reason&&<p className="score-eligibility">{result.reason}</p>}
-   {eligible&&<><p className="small-note">Replay saved for this result ({result.proof!.inputs.length.toLocaleString()} fixed steps). Restarting or leaving this table discards it.</p><button className="primary full" disabled={!configured||busy||confirmed} onClick={verify}>{busy?'Waiting…':signed?'Verify replay again':'Connect wallet & verify replay'}</button>
-    {signed&&!confirmed&&<><p className="small-note">Verified wallet: <span className="wallet-address">{signed.attestation.wallet}</span>. Proof expires {new Date(Number(signed.attestation.expiresAt)*1000).toLocaleTimeString()}.</p><button className="primary full" disabled={busy} onClick={submit}>Submit score to Sepolia ↗</button></>}
-   </>}
-   {confirmed&&<p className="score-confirmed">Onchain best: {best?.toLocaleString()} · {rank?'Top-20 rank #'+rank:'Outside the onchain top 20'}</p>}
-  </>:<p>Finish all three balls first. Wallet verification and a score transaction are optional after play.</p>}
+   {leaders!==null&&<><h4>OFFCHAIN · {title} · TOP 20</h4>{leaders.length?<ol className="leaderboard-list">{leaders.map((row,i)=><li key={row.wallet}><span>#{i+1}</span><abbr title={row.wallet}>{row.wallet.slice(0,6)}…{row.wallet.slice(-4)}</abbr><b>{row.score.toLocaleString()}</b></li>)}</ol>:<p>No leaderboard entries were returned. No rank is claimed.</p>}</>}
+   {leaderError&&<p role="status">{leaderError}</p>}
+   {result.proof&&<p className="small-note">Replay saved for this result ({result.proof.inputs.length.toLocaleString()} fixed steps). Restarting or leaving this table discards it.</p>}
+   <div className="share-actions"><a aria-label="Share on X" href={'https://twitter.com/intent/tweet?'+new URLSearchParams({text})} target="_blank" rel="noopener noreferrer">Share on X ↗</a><a aria-label="Share on Telegram" href={'https://t.me/share/url?'+new URLSearchParams({url:'',text})} target="_blank" rel="noopener noreferrer">Telegram ↗</a><button onClick={copy}>Copy result</button>{typeof navigator.share==='function'&&<button onClick={share}>More sharing options</button>}</div><p className="share-copy">A good shift is worth sharing. Only if you want to.</p><p role="status">{shareStatus}</p>{copyFallback&&<textarea ref={fallbackRef} aria-label="Select result text to copy" readOnly value={text} style={{width:'100%',minHeight:70}}/>}
+  </>:<p>Finish all three balls to see your score and optional sharing. Practice scores are local to this run and disappear when you leave or restart. Ranked runs are recorded offchain automatically after replay verification.</p>}
   {!tableId&&onStandard&&<button className="full" onClick={onStandard}>Start official standard run ↗</button>}
-  {!configured&&<div className="score-unavailable"><b>Leaderboard not deployed / configured.</b><p>Verified submission and online ranks are unavailable. Free play still works; no online result is claimed.</p></div>}
-  <h4>SEPOLIA · {title} · TOP 20</h4>
-  {tableId?<button className="full" onClick={refresh} disabled={!configured||busy}>Refresh onchain leaderboard</button>:<p className="small-note">Only official, standard (uncharged) tables have verified rankings.</p>}
-  {leaders!==null&&(leaders.length?<ol className="leaderboard-list">{leaders.map((entry,i)=><li key={entry.wallet}><span>#{i+1}</span><abbr title={entry.wallet}>{entry.wallet.slice(0,6)}…{entry.wallet.slice(-4)}</abbr><b>{entry.score.toLocaleString()}</b></li>)}</ol>:<p>No onchain entries for this table.</p>)}
-  <p className="chain-status" role="status">{status}</p>
-  {hash&&<a href={'https://sepolia.etherscan.io/tx/'+hash} target="_blank" rel="noreferrer">{confirmed?'View confirmed score transaction':'Inspect broadcast transaction'} ↗</a>}
-  <p className="small-note">Verifier-attested replay, not a trustless proof of human play. Public wallet + score; Sepolia testnet only. No tokens or prizes.</p>
+  <p className="small-note">No post-game wallet transaction. Replay verification is not proof of human play. No tokens or prizes.</p>
  </section>;
 }
